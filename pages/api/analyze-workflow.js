@@ -1,7 +1,6 @@
 import { IncomingForm } from 'formidable'
 import fs from 'fs'
 import path from 'path'
-import type { NextApiRequest, NextApiResponse } from 'next'
 
 // Disable default body parser to handle file upload
 export const config = {
@@ -10,32 +9,7 @@ export const config = {
   },
 };
 
-type NodeData = {
-  id: string;
-  name: string;
-  type: string;
-};
-
-type ConnectionData = {
-  inputs: number;
-  outputs: number;
-};
-
-type AnalysisResult = {
-  totalNodes: number;
-  simpleNodes: NodeData[];
-  moderateNodes: NodeData[];
-  complexNodes: NodeData[];
-  simplePrice: number;
-  moderatePrice: number;
-  complexPrice: number;
-  totalPrice: number;
-};
-
-export default async function handler(
-  req: NextApiRequest, 
-  res: NextApiResponse
-) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' })
   }
@@ -44,7 +18,7 @@ export default async function handler(
     // Parse form with formidable
     const form = new IncomingForm()
     
-    const { fields, files } = await new Promise<{ fields: any, files: any }>((resolve, reject) => {
+    const { fields, files } = await new Promise((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
         if (err) return reject(err)
         resolve({ fields, files })
@@ -71,13 +45,13 @@ export default async function handler(
     
     // Return analysis results
     return res.status(200).json(analysisResults)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error processing file:', error)
     return res.status(500).json({ message: 'Error processing file', error: error.message })
   }
 }
 
-function analyzeWorkflow(workflowData: any): AnalysisResult {
+function analyzeWorkflow(workflowData) {
   // Extract nodes from Make.com or n8n format
   const nodes = extractNodes(workflowData)
   
@@ -85,9 +59,9 @@ function analyzeWorkflow(workflowData: any): AnalysisResult {
   const connections = analyzeConnections(workflowData)
   
   // Categorize nodes
-  const simpleNodes: NodeData[] = []
-  const moderateNodes: NodeData[] = []
-  const complexNodes: NodeData[] = []
+  const simpleNodes = []
+  const moderateNodes = []
+  const complexNodes = []
   
   nodes.forEach(node => {
     const category = categorizeNode(node, connections)
@@ -119,18 +93,18 @@ function analyzeWorkflow(workflowData: any): AnalysisResult {
   }
 }
 
-function extractNodes(workflowData: any): NodeData[] {
+function extractNodes(workflowData) {
   // Handle either Make.com or n8n format
   if (workflowData.flow) {
     // Make.com format
-    return workflowData.flow.map((node: any) => ({
+    return workflowData.flow.map(node => ({
       id: node.id,
       name: node.name || node.module,
       type: node.module,
     }))
   } else if (workflowData.nodes) {
     // n8n format
-    return workflowData.nodes.map((node: any) => ({
+    return workflowData.nodes.map(node => ({
       id: node.id,
       name: node.name,
       type: node.type,
@@ -140,13 +114,13 @@ function extractNodes(workflowData: any): NodeData[] {
   return []
 }
 
-function analyzeConnections(workflowData: any): Record<string, ConnectionData> {
-  const connections: Record<string, ConnectionData> = {}
+function analyzeConnections(workflowData) {
+  const connections = {}
   
   // Handle either Make.com or n8n format
   if (workflowData.flow) {
     // Make.com format - simplified for demo
-    workflowData.flow.forEach((node: any) => {
+    workflowData.flow.forEach(node => {
       connections[node.id] = { inputs: 0, outputs: 0 }
     })
     
@@ -164,7 +138,7 @@ function analyzeConnections(workflowData: any): Record<string, ConnectionData> {
     }
   } else if (workflowData.nodes && workflowData.connections) {
     // n8n format
-    workflowData.nodes.forEach((node: any) => {
+    workflowData.nodes.forEach(node => {
       connections[node.id] = { inputs: 0, outputs: 0 }
     })
     
@@ -172,8 +146,8 @@ function analyzeConnections(workflowData: any): Record<string, ConnectionData> {
     Object.keys(workflowData.connections).forEach(sourceNodeId => {
       const outputs = workflowData.connections[sourceNodeId].main || []
       
-      outputs.forEach((outputConnections: any[]) => {
-        outputConnections.forEach((connection: any) => {
+      outputs.forEach(outputConnections => {
+        outputConnections.forEach(connection => {
           const targetNodeId = connection.node
           
           // Increment output count for source node
@@ -191,7 +165,7 @@ function analyzeConnections(workflowData: any): Record<string, ConnectionData> {
   return connections
 }
 
-function categorizeNode(node: NodeData, connections: Record<string, ConnectionData>): 'Simple' | 'Moderate' | 'Complex' {
+function categorizeNode(node, connections) {
   const nodeType = node.type
   const nodeName = node.name || ''
   const nodeConnections = connections[node.id] || { inputs: 0, outputs: 0 }
